@@ -28,4 +28,4 @@ resolvers += "Typesafe Repo" at "http://repo.typesafe.com/typesafe/releases/"
 
 resolvers += "spray repo" at "http://repo.spray.io"
 
-addSbtPlugin("org.adept" % "adept-sbt" % "0.8.0-ALPHA-20130812150308")
+addSbtPlugin("org.adept" % "adept-sbt" % "0.8.0-ALPHA-20130812155932")
