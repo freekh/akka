@@ -20,4 +20,12 @@ addSbtPlugin("com.github.sbt" %% "sbt-scalabuff" % "0.2")
 
 addSbtPlugin("com.typesafe.sbt" % "sbt-pgp" % "0.8")
 
-addSbtPlugin("org.adept" % "adept-sbt" % "0.8.0-ALPHA-20130812143828")
+//adept:
+
+resolvers += Resolver.url("bintray", new URL("http://dl.bintray.com/freekh/adept-ivy"))(Resolver.ivyStylePatterns)
+
+resolvers += "Typesafe Repo" at "http://repo.typesafe.com/typesafe/releases/"
+
+resolvers += "spray repo" at "http://repo.spray.io"
+
+addSbtPlugin("org.adept" % "adept-sbt" % "0.8.0-ALPHA-20130812150308")
