@@ -19,3 +19,5 @@ addSbtPlugin("me.lessis" % "ls-sbt" % "0.1.2")
 addSbtPlugin("com.github.sbt" %% "sbt-scalabuff" % "0.2")
 
 addSbtPlugin("com.typesafe.sbt" % "sbt-pgp" % "0.8")
+
+addSbtPlugin("org.adept" % "adept-sbt" % "0.8.0-ALPHA-20130812143828")

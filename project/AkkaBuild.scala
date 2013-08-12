@@ -27,6 +27,9 @@ import java.util.Properties
 import annotation.tailrec
 import Unidoc.{ JavaDoc, javadocSettings, junidocSources, sunidoc, unidocExclude }
 import scalabuff.ScalaBuffPlugin._
+import adept.sbt._
+import adept.sbt.AdeptKeys._
+import adept.sbt.AdeptPlugin._
 
 object AkkaBuild extends Build {
   System.setProperty("akka.mode", "test") // Is there better place for this?
@@ -164,13 +167,27 @@ object AkkaBuild extends Build {
     )
   )
 
+  lazy val adeptTest = Project( //TODO: remove
+    id = "akka-ADEPT-test", 
+    base = file("akka-ADEPT-test"),
+    settings = defaultSettings ++ scaladocSettings ++ javadocSettings ++ OSGi.testkit ++ Seq(
+      adeptDependencies += "com.typesafe"%"config"%"1.0.2",
+      adeptDependencies += "com.novocode"%"junit-interface"%"0.8" % "test",
+      adeptDependencies += "junit"%"junit"%"4.10",
+      initialCommands += "import akka.testkit._",
+      previousArtifact := akkaPreviousArtifact("akka-testkit")
+    )
+  )
+
+
+
   lazy val actorTests = Project(
     id = "akka-actor-tests",
     base = file("akka-actor-tests"),
     dependencies = Seq(testkit % "compile;test->test"),
     settings = defaultSettings ++ scaladocSettings  ++ Seq(
       publishArtifact in Compile := false,
-      libraryDependencies ++= Dependencies.actorTests,
+      adeptDependencies ++= Dependencies.actorTests,
       testOptions += Tests.Argument(TestFrameworks.JUnit, "-v", "-a")
     )
   )
@@ -196,12 +213,12 @@ object AkkaBuild extends Build {
     )
   )
 
-  lazy val remoteTests = Project(
+  lazy val remoteTests = Project( //TODO: Fix
     id = "akka-remote-tests",
     base = file("akka-remote-tests"),
     dependencies = Seq(actorTests % "test->test", multiNodeTestkit),
     settings = defaultSettings ++ scaladocSettings ++ multiJvmSettings ++ Seq(
-      libraryDependencies ++= Dependencies.remoteTests,
+      adeptDependencies ++= Dependencies.remoteTests,
       // disable parallel tests
       parallelExecution in Test := false,
       extraOptions in MultiJvm <<= (sourceDirectory in MultiJvm) { src =>
@@ -219,9 +236,13 @@ object AkkaBuild extends Build {
     dependencies = Seq(remote, remoteTests % "test->test" , testkit % "test->test"),
     settings = defaultSettings ++ scaladocSettings ++ javadocSettings ++ multiJvmSettings ++ OSGi.cluster ++ experimentalSettings ++
       scalabuffSettings ++ Seq(
+      adeptTree in ScalaBuff <<= adeptTreeTask(ScalaBuff),
+      adeptClasspath in ScalaBuff <<= adeptClasspathTask(ScalaBuff),
+      (managedClasspath in ScalaBuff) <++= adeptClasspath in ScalaBuff,
+      //^ adept
       // this version needs to be reflected in the OSGi.scalabuffImport and dining hackers pom.xml
       scalabuffVersion in ScalaBuff := "1.2.0",
-      libraryDependencies ++= Dependencies.cluster,
+      adeptDependencies ++= Dependencies.cluster,
       // disable parallel tests
       parallelExecution in Test := false,
       extraOptions in MultiJvm <<= (sourceDirectory in MultiJvm) { src =>
@@ -237,7 +258,7 @@ object AkkaBuild extends Build {
     base = file("akka-slf4j"),
     dependencies = Seq(actor, testkit % "test->test"),
     settings = defaultSettings ++ scaladocSettings ++ javadocSettings ++ OSGi.slf4j ++ Seq(
-      libraryDependencies ++= Dependencies.slf4j,
+      adeptDependencies ++= Dependencies.slf4j,
       previousArtifact := akkaPreviousArtifact("akka-slf4j")
     )
   )
@@ -247,7 +268,7 @@ object AkkaBuild extends Build {
     base = file("akka-agent"),
     dependencies = Seq(actor, testkit % "test->test"),
     settings = defaultSettings ++ scaladocSettings ++ javadocSettings ++ OSGi.agent ++ Seq(
-      libraryDependencies ++= Dependencies.agent,
+      adeptDependencies ++= Dependencies.agent,
       previousArtifact := akkaPreviousArtifact("akka-agent")
     )
   )
@@ -257,7 +278,7 @@ object AkkaBuild extends Build {
     base = file("akka-transactor"),
     dependencies = Seq(actor, testkit % "test->test"),
     settings = defaultSettings ++ scaladocSettings ++ javadocSettings ++ OSGi.transactor ++ Seq(
-      libraryDependencies ++= Dependencies.transactor,
+      adeptDependencies ++= Dependencies.transactor,
       previousArtifact := akkaPreviousArtifact("akka-transactor")
     )
   )
@@ -276,7 +297,7 @@ object AkkaBuild extends Build {
     base = file("akka-durable-mailboxes/akka-mailboxes-common"),
     dependencies = Seq(remote, testkit % "compile;test->test"),
     settings = defaultSettings ++ scaladocSettings ++ javadocSettings ++ OSGi.mailboxesCommon ++ Seq(
-      libraryDependencies ++= Dependencies.mailboxes,
+      adeptDependencies ++= Dependencies.mailboxes,
       previousArtifact := akkaPreviousArtifact("akka-mailboxes-common"),
       publishArtifact in Test := true
     )
@@ -287,7 +308,7 @@ object AkkaBuild extends Build {
     base = file("akka-durable-mailboxes/akka-file-mailbox"),
     dependencies = Seq(mailboxesCommon % "compile;test->test", testkit % "test"),
     settings = defaultSettings ++ scaladocSettings ++ javadocSettings ++ OSGi.fileMailbox ++ Seq(
-      libraryDependencies ++= Dependencies.fileMailbox,
+      adeptDependencies ++= Dependencies.fileMailbox,
       previousArtifact := akkaPreviousArtifact("akka-file-mailbox")
     )
   )
@@ -297,7 +318,7 @@ object AkkaBuild extends Build {
     base = file("akka-zeromq"),
     dependencies = Seq(actor, testkit % "test;test->test"),
     settings = defaultSettings ++ scaladocSettings ++ javadocSettings ++ OSGi.zeroMQ ++ Seq(
-      libraryDependencies ++= Dependencies.zeroMQ,
+      adeptDependencies ++= Dependencies.zeroMQ,
       previousArtifact := akkaPreviousArtifact("akka-zeromq")
     )
   )
@@ -307,7 +328,7 @@ object AkkaBuild extends Build {
     base = file("akka-kernel"),
     dependencies = Seq(actor, testkit % "test->test"),
     settings = defaultSettings ++ scaladocSettings ++ javadocSettings ++ Seq(
-      libraryDependencies ++= Dependencies.kernel,
+      adeptDependencies ++= Dependencies.kernel,
       previousArtifact := akkaPreviousArtifact("akka-kernel")
     )
   )
@@ -317,7 +338,7 @@ object AkkaBuild extends Build {
     base = file("akka-camel"),
     dependencies = Seq(actor, slf4j, testkit % "test->test"),
     settings = defaultSettings ++ scaladocSettings ++ javadocSettings ++ OSGi.camel ++ Seq(
-      libraryDependencies ++= Dependencies.camel,
+      adeptDependencies ++= Dependencies.camel,
       testOptions += Tests.Argument(TestFrameworks.JUnit, "-v", "-a")
     )
   )
@@ -350,7 +371,7 @@ object AkkaBuild extends Build {
     base = file("akka-osgi"),
     dependencies = Seq(actor),
     settings = defaultSettings ++ scaladocSettings ++ javadocSettings ++ OSGi.osgi ++ Seq(
-      libraryDependencies ++= Dependencies.osgi,
+      adeptDependencies ++= Dependencies.osgi,
       ActorReferenceCopyTask in Compile <<= ActorReferenceCopyAction ,
       cleanFiles <+= baseDirectory { base => base / "src/main/resources" } ,
       compile in Compile <<= compile in Compile dependsOn (ActorReferenceCopyTask in Compile),
@@ -363,7 +384,7 @@ object AkkaBuild extends Build {
     base = file("akka-osgi-aries"),
     dependencies = Seq(osgi % "compile;test->test"),
     settings = defaultSettings ++ scaladocSettings ++ javadocSettings ++ OSGi.osgiAries ++ Seq(
-      libraryDependencies ++= Dependencies.osgiAries,
+      adeptDependencies ++= Dependencies.osgiAries,
       parallelExecution in Test := false
     )
   )
@@ -392,7 +413,7 @@ object AkkaBuild extends Build {
     id = "akka-sample-camel",
     base = file("akka-samples/akka-sample-camel"),
     dependencies = Seq(actor, camel),
-    settings = sampleSettings ++ Seq(libraryDependencies ++= Dependencies.camelSample)
+    settings = sampleSettings ++ Seq(adeptDependencies ++= Dependencies.camelSample)
   )
 
   lazy val fsmSample = Project(
@@ -428,7 +449,7 @@ object AkkaBuild extends Build {
     base = file("akka-samples/akka-sample-cluster"),
     dependencies = Seq(cluster, contrib, remoteTests % "test", testkit % "test"),
     settings = sampleSettings ++ multiJvmSettings ++ experimentalSettings ++ Seq(
-      libraryDependencies ++= Dependencies.clusterSample,
+      adeptDependencies ++= Dependencies.clusterSample,
       javaOptions in run ++= Seq(
         "-Djava.library.path=./sigar",
         "-Xms128m", "-Xmx1024m"),
@@ -446,7 +467,7 @@ object AkkaBuild extends Build {
     base = file("akka-samples/akka-sample-multi-node"),
     dependencies = Seq(multiNodeTestkit % "test", testkit % "test"),
     settings = sampleSettings ++ multiJvmSettings ++ experimentalSettings ++ Seq(
-      libraryDependencies ++= Dependencies.multiNodeSample,
+      adeptDependencies ++= Dependencies.multiNodeSample,
       // disable parallel tests
       parallelExecution in Test := false,
       extraOptions in MultiJvm <<= (sourceDirectory in MultiJvm) { src =>
@@ -469,14 +490,14 @@ object AkkaBuild extends Build {
   lazy val osgiDiningHakkersSampleCommand = Project(id = "akka-sample-osgi-dining-hakkers-command",
     base = file("akka-samples/akka-sample-osgi-dining-hakkers/command"),
     settings = sampleSettings ++ OSGi.osgiDiningHakkersSampleCommand ++ Seq(
-      libraryDependencies ++= Dependencies.osgiDiningHakkerSampleCommand
+      adeptDependencies ++= Dependencies.osgiDiningHakkerSampleCommand
     )
   ) dependsOn (osgiDiningHakkersSampleApi, actor)
 
   lazy val osgiDiningHakkersSampleCore = Project(id = "akka-sample-osgi-dining-hakkers-core",
     base = file("akka-samples/akka-sample-osgi-dining-hakkers/core"),
     settings = sampleSettings ++ OSGi.osgiDiningHakkersSampleCore ++ Seq(
-      libraryDependencies ++= Dependencies.osgiDiningHakkerSampleCore
+      adeptDependencies ++= Dependencies.osgiDiningHakkerSampleCore
     )
   ) dependsOn (osgiDiningHakkersSampleApi, actor, remote, cluster, osgi)
 
@@ -484,7 +505,7 @@ object AkkaBuild extends Build {
   lazy val uncommons = Project(id = "akka-sample-osgi-dining-hakkers-uncommons",
     base = file("akka-samples/akka-sample-osgi-dining-hakkers/uncommons"),
     settings = sampleSettings ++ OSGi.osgiDiningHakkersSampleUncommons ++ Seq(
-      libraryDependencies ++= Dependencies.uncommons,
+      adeptDependencies ++= Dependencies.uncommons,
       version := "1.2.0"
     )
   )
@@ -493,7 +514,7 @@ object AkkaBuild extends Build {
   lazy val scalaBuff = Project(id = "akka-sample-osgi-dining-hakkers-scalaBuff",
     base = file("akka-samples/akka-sample-osgi-dining-hakkers/scalabuff"),
     settings = sampleSettings ++ OSGi.osgiDiningHakkersSampleScalaBuff ++ Seq(
-      libraryDependencies ++= Dependencies.scalaBuff,
+      adeptDependencies ++= Dependencies.scalaBuff,
       version := "1.2.0"
     )
   )
@@ -539,7 +560,7 @@ object AkkaBuild extends Build {
       enableOutput in generatePdf in Sphinx := true,
       enableOutput in generateEpub in Sphinx := true,
       unmanagedSourceDirectories in Test <<= sourceDirectory in Sphinx apply { _ ** "code" get },
-      libraryDependencies ++= Dependencies.docs,
+      adeptDependencies ++= Dependencies.docs,
       publishArtifact in Compile := false,
       unmanagedSourceDirectories in ScalariformKeys.format in Test <<= unmanagedSourceDirectories in Test,
       testOptions += Tests.Argument(TestFrameworks.JUnit, "-v", "-a")
@@ -551,7 +572,7 @@ object AkkaBuild extends Build {
     base = file("akka-contrib"),
     dependencies = Seq(remote, remoteTests % "test->test", cluster),
     settings = defaultSettings ++ scaladocSettings ++ javadocSettings ++ multiJvmSettings ++ Seq(
-      libraryDependencies ++= Dependencies.contrib,
+      adeptDependencies ++= Dependencies.contrib,
       testOptions += Tests.Argument(TestFrameworks.JUnit, "-v"),
       description := """|
                         |This subproject provides a home to modules contributed by external
@@ -571,7 +592,7 @@ object AkkaBuild extends Build {
     base = file("akka-channels"),
     dependencies = Seq(actor),
     settings = defaultSettings ++ scaladocSettings ++ experimentalSettings ++ Seq(
-      libraryDependencies <+= (scalaVersion)("org.scala-lang" % "scala-reflect" % _)
+      adeptDependencies <+= (scalaVersion)("org.scala-lang" % "scala-reflect" % _)
     )
   )
 
@@ -581,7 +602,7 @@ object AkkaBuild extends Build {
     dependencies = Seq(channels, testkit % "compile;test->test"),
     settings = defaultSettings ++ experimentalSettings ++ Seq(
       publishArtifact in Compile := false,
-      libraryDependencies <+= (scalaVersion)("org.scala-lang" % "scala-compiler" % _)
+      adeptDependencies <+= (scalaVersion)("org.scala-lang" % "scala-compiler" % _)
     )
   )
 
@@ -673,7 +694,10 @@ object AkkaBuild extends Build {
     (if (useOnlyTestTags.isEmpty) Seq.empty else Seq("-n", if (multiNodeEnabled) useOnlyTestTags.mkString("\"", " ", "\"") else useOnlyTestTags.mkString(" ")))
   }
 
-  lazy val defaultSettings = baseSettings ++ formatSettings ++ mimaSettings ++ lsSettings ++ Seq(
+  lazy val defaultSettings = baseSettings ++ formatSettings ++ mimaSettings ++ lsSettings ++ adeptSettings ++ Seq(
+    //adept central:
+    adeptRepositories += "central" -> "git@github.com:freekh/adept-central.git",
+
     // compile options
     scalacOptions in Compile ++= Seq("-encoding", "UTF-8", "-target:jvm-1.6", "-deprecation", "-feature", "-unchecked", "-Xlog-reflective-calls", "-Xlint"),
     javacOptions in Compile ++= Seq("-encoding", "UTF-8", "-source", "1.6", "-target", "1.6", "-Xlint:unchecked", "-Xlint:deprecation"),
@@ -785,6 +809,10 @@ object AkkaBuild extends Build {
   }
 
   lazy val multiJvmSettings = SbtMultiJvm.multiJvmSettings ++ inConfig(MultiJvm)(SbtScalariform.scalariformSettings) ++ Seq(
+    adeptTree in MultiJvm <<= adeptTreeTask(MultiJvm),
+    adeptClasspath in MultiJvm <<= adeptClasspathTask(MultiJvm),
+    (managedClasspath in MultiJvm) <++= adeptClasspath in MultiJvm,
+    //^ adept
     jvmOptions in MultiJvm := defaultMultiJvmOptions,
     compileInputs in MultiJvm <<= (compileInputs in MultiJvm) dependsOn (ScalariformKeys.format in MultiJvm),
     compile in MultiJvm <<= (compile in MultiJvm) triggeredBy (compile in Test),
